@@ -1,7 +1,6 @@
 import cv2 as cv
 import numpy as np
 import apriltag
-import AprilTag.scripts.apriltag
 
 data = np.load("calibration_data.npz")
 mtx = data["arr_0"]
@@ -17,14 +16,27 @@ cy = mtx[1][2]
 
 TAG_WIDTH_M = 0.1651
 
+h = 480
+w = 640
+newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+
 cap = cv.VideoCapture(0)
 while True:
    status, img = cap.read()
 
-   res, overlay = AprilTag.scripts.apriltag.detect_tags(img, detector, (fx, fy, cx, cy), TAG_WIDTH_M, 3, 3, True)
+   dst = cv.undistort(img, mtx, dist, None, newcameramtx)
 
-   cv.imshow("Streaming Video", overlay)
-   if cv.waitKey(10) == 13:
+   x, y, w, h = roi
+   dst = dst[y:y+h, x:x+w]
+
+   cv.imshow("Video", dst)
+
+   gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+   print(detector.detect(gray))
+   
+
+   if cv.waitKey(10) in range(128):
       break
 cv.destroyAllWindows()
 
