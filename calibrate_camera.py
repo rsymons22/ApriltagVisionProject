@@ -18,14 +18,10 @@ objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
 images = glob.glob("calibration_pictures/*.jpg")
-
-flag = True
  
 for fname in images:
     img = cv.imread(fname)
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-
-    if flag: cv.imwrite("before_img.jpg", img)
     
     # Find the chess board corners
     ret, corners = cv.findChessboardCorners(gray, (HEIGHT,WIDTH), None)
@@ -40,10 +36,8 @@ for fname in images:
         # Draw and display the corners
         cv.drawChessboardCorners(img, (HEIGHT,WIDTH), corners2, ret)
 
-    if flag: cv.imwrite("after_img.jpg", img)
     cv.imshow('img', img)
     cv.waitKey(500)
-    flag = False
  
 cv.destroyAllWindows()
 
@@ -53,7 +47,7 @@ print(f"ret: {ret} | mtx: {mtx} | dist: {dist} | rvecs: {rvecs} | tvecs: {tvecs}
 h = 480
 w = 640
 newmtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
-print(f"new camera matrix: {newmtx}")
+print(f"new camera matrix: {newmtx} | roi: {roi}")
 
 np.savez("calibration_data", mtx=mtx, dist=dist, roi=roi, newmtx=newmtx)
 
