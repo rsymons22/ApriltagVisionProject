@@ -49,7 +49,13 @@ cv.destroyAllWindows()
 
 ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 print(f"ret: {ret} | mtx: {mtx} | dist: {dist} | rvecs: {rvecs} | tvecs: {tvecs}")
-np.savez("calibration_data", mtx, dist)
+
+h = 480
+w = 640
+newmtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+print(f"new camera matrix: {newmtx}")
+
+np.savez("calibration_data", mtx=mtx, dist=dist, roi=roi, newmtx=newmtx)
 
 print("Calibration data exported to calibration_data.npz")
 
