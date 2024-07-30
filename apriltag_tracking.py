@@ -1,17 +1,30 @@
 from time import sleep
 from apriltag_detection import ApriltagDetection
-from servo_motor import ServoMotor
+from stepper_motor import StepperMotor
 from beam_sensor import BeamSensor
 import threading
 
-THRESHOLD_PX = 10
-DEBUG = True
+OUTER_THRESHOLD_PX = 15
+INNER_THRESHOLD_PX = 7
+debug = True
+DEFAULT_TAG_TO_TRACK = "13"
 
-atdetection = ApriltagDetection()
-motor = ServoMotor()
+atdetection = ApriltagDetection(DEFAULT_TAG_TO_TRACK)
+motor = StepperMotor()
 beam = BeamSensor()
 
 stop = False
+
+def check_sudden_dir_change(turning_other):
+    """
+    Check if motor is turning other direction, if so stop the motor and wait a bit.
+
+    :param turning_other: if motor is turning in other direction
+    """
+    if turning_other:
+        if debug: print("Stopping [Sudden direction change]")
+        motor.stop()
+        sleep(0.01)
 
 def track():
     
@@ -19,6 +32,7 @@ def track():
 
     turning_CW = False
     turning_CCW = False
+    turning_slow = False
 
     at_thread.start()
 
@@ -32,7 +46,7 @@ def track():
         if h == None:
             # Currently moving -> stop
             if turning_CCW or turning_CW:
-                if DEBUG: print("Stopping [Lost target]")
+                if debug: print("Stopping [Lost target]")
                 motor.stop()
 
                 turning_CW = False
@@ -41,37 +55,43 @@ def track():
             else:
                 continue
 
+        # Tag center within outer threshold -> slow down
+        elif (turning_CCW or turning_CW) and not turning_slow and (h >= -OUTER_THRESHOLD_PX and h <= OUTER_THRESHOLD_PX):
+            motor.in_outer_threshold(True)
+            if debug: print("Slowing Motor [Reached outer threshold]")
+
+            turning_slow = True
+
         # Tag center within threshold -> stop
-        elif (turning_CCW or turning_CW) and (h >= -THRESHOLD_PX and h <= THRESHOLD_PX):
-            if DEBUG: print("Stopping [Centered]")
+        elif (turning_CCW or turning_CW) and (h >= -INNER_THRESHOLD_PX and h <= INNER_THRESHOLD_PX):
             motor.stop()
+            if debug: print("Stopping [Centered]")
 
             turning_CW = False
             turning_CCW = False
 
+        # Tag center outside outer threshold and still turning slow -> speed up
+        elif (turning_CCW or turning_CW) and turning_slow and (h < -OUTER_THRESHOLD_PX or h > OUTER_THRESHOLD_PX):
+            motor.in_outer_threshold(False)
+            if debug: print("Speeding up Motor [Outside outer threshold]")
+
+            turning_slow = False
+
         # Tag is to the left and camera is not currently turning -> turn CCW
-        elif h < -THRESHOLD_PX and not turning_CCW:
-            # If turning other direction, stop the motor and wait a bit
-            if turning_CW:
-                if DEBUG: print("Stopping [Sudden direction change]")
-                motor.stop()
-                sleep(0.01)
+        elif h < -INNER_THRESHOLD_PX and not turning_CCW:
+            check_sudden_dir_change(turning_CW)
             
-            if DEBUG: print("Turning CCW")
+            if debug: print("Turning CCW")
             threading.Thread(target=motor.turn, args=(False,), daemon=True).start()
 
             turning_CCW = True
             turning_CW = False
 
         # Tag is to the right and camera is not currently turning -> turn CW
-        elif h > THRESHOLD_PX and not turning_CW:
-            # If turning other direction, stop the motor and wait a bit
-            if turning_CCW:
-                if DEBUG: print("Stopping [Sudden direction change]")
-                motor.stop()
-                sleep(0.01)
+        elif h > INNER_THRESHOLD_PX and not turning_CW:
+            check_sudden_dir_change(turning_CCW)
             
-            if DEBUG: print("Turning CW")
+            if debug: print("Turning CW")
             threading.Thread(target=motor.turn, args=(True,), daemon=True).start()
 
             turning_CW = True
@@ -83,9 +103,24 @@ def track():
 if __name__ == "__main__":
     threading.Thread(target=track, daemon=True).start()
 
-    input("Press enter to end tracking\n")
+    print("Commands:\n \
+        \ttag id   -> track tag with given id\n \
+        \tdebug    -> toggle debug\n \
+        \tq        -> quit\n")
+    
+
+    while True:
+        cmd = input("")
+
+        if cmd == "q": break
+        elif cmd.startswith("tag"): 
+            atdetection.tag = cmd[4:]
+            print(f"> Tracking tag: {cmd[4:]}")
+        elif cmd == "debug":
+            debug = not debug
+            print("> Debug", "on" if debug else "off")
 
     stop = True
 
-    print("Done")
+    print("> Done")
     motor.cleanup()

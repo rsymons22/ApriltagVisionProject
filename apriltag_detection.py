@@ -4,14 +4,14 @@ import apriltag
 import os
 import math
 
-# Command to display grahics on pi: export DISPLAY=:0.0
+# Command to display graphics on pi: export DISPLAY=:0.0
 
 HEIGHT_PX = 480
 WIDTH_PX = 640
-TAG_WIDTH_MM = 152.4 # 6in
+TAG_WIDTH = 6.5
 
 class ApriltagDetection():
-   def __init__(self):
+   def __init__(self, tag):
       data = np.load("calibration_data.npz")
       self.mtx = data["mtx"]
       self.dist = data["dist"]
@@ -24,6 +24,7 @@ class ApriltagDetection():
       self.vert = None
       self.stop = False
       self.distance = None
+      self.tag = tag
 
    def calculate_distance(self, corners, theta):
       """
@@ -44,10 +45,7 @@ class ApriltagDetection():
       # by using the formula: real_width = apparent_width / cos(theta)
       width_px_adjusted = math.fabs(width_px / math.cos(theta))
 
-      # Focal length is in mm, so must first calculate dist in mm then convert to inches
-      dist_mm = (TAG_WIDTH_MM * self.newmtx[0][0]) / width_px_adjusted
-      dist_in = dist_mm / 25.4
-      self.distance = dist_in
+      self.distance = (TAG_WIDTH * self.newmtx[0][0]) / width_px_adjusted
 
    def run_detection(self):
       cap = cv.VideoCapture(0)
@@ -64,9 +62,13 @@ class ApriltagDetection():
          gray = cv.cvtColor(dst, cv.COLOR_BGR2GRAY)
 
          results = self.detector.detect(gray)
+
+         r = None
+         for result in results:
+            if str(result.tag_id) == self.tag:
+               r = result
          
-         if results != []:
-            r = results[0]
+         if r != None:
 
             # Corners and center points
             (ptA, ptB, ptC, ptD) = r.corners
@@ -81,15 +83,18 @@ class ApriltagDetection():
             self.horiz = center[0] - (WIDTH_PX / 2)
             self.vert = center[1] - (HEIGHT_PX / 2)
 
+            # Calculate distance
+            self.calculate_distance(r.corners, math.atan2(r.homography[1, 0], r.homography[0, 0]))
+
             # Draw pertinent information on the screen
-            cv.putText(dst, f"t{str(r.tag_id)}|h:{self.horiz}|v:{self.vert}", (ptA[0], ptA[1] - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv.putText(dst, f"t:{str(r.tag_id)} | h:{self.horiz} | d:{int(self.distance)}", (ptA[0], ptA[1] - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
             cv.line(dst, ptA, ptB, (0, 255, 0), 2)
             cv.line(dst, ptB, ptC, (0, 255, 0), 2)
             cv.line(dst, ptC, ptD, (0, 255, 0), 2)
             cv.line(dst, ptD, ptA, (0, 255, 0), 2)
 
             cv.circle(dst, center, 1, (0, 0, 255), 2)
-            self.calculate_distance(r.corners, math.atan2(r.homography[1, 0], r.homography[0, 0]))
+            
             
          else:
             self.horiz = None
@@ -99,8 +104,6 @@ class ApriltagDetection():
          cv.imshow("Video", dst)
          cv.waitKey(10)
 
-         # if cv.waitKey(10) in range(128):
-         #    break
       cv.destroyAllWindows()
 
 
