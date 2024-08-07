@@ -1,8 +1,10 @@
 import RPi.GPIO as GPIO
-import time
+from time import sleep
 
-STARTING_STEP_SLEEP = 0.0001
+STARTING_STEP_SLEEP = 0.001
 CLOSE_TO_HOME_STEP_SLEEP = 0.01
+GEAR_RATIO = 88 / 15
+DEGREES_PER_ROTATION = 0.087890625
 
 class StepperMotor:
     def __init__(self):
@@ -10,7 +12,7 @@ class StepperMotor:
         self.out2 = 18
         self.out3 = 27
         self.out4 = 22
-
+        
         self.step_sequence = [[1,0,0,1], [1,0,0,0], [1,1,0,0], [0,1,0,0],
                         [0,1,1,0], [0,0,1,0], [0,0,1,1],[0,0,0,1]]
        
@@ -29,6 +31,8 @@ class StepperMotor:
 
         self.halt = False
         self.step_sleep = STARTING_STEP_SLEEP
+
+        self.count = 0
 
 
     def cleanup(self):
@@ -68,9 +72,43 @@ class StepperMotor:
                 GPIO.output(self.motor_pins[pin], self.step_sequence[motor_step_counter][pin])
 
             motor_step_counter = (motor_step_counter - 1 if CW else motor_step_counter + 1) % 8
-            time.sleep(self.step_sleep)
+            sleep(self.step_sleep)  
 
-        
+    def home(self, angle, homed_func):
+        """
+        Home the camera to the designated "front" of the robot (where the beam sensor is located). This is 
+        achieved by first rotating x degrees clockwise to check for the beam, if not found it rotates 2x
+        counter clockwise to check for the beam.
+
+        :param angle: angle value in degrees to check for (will look CW x degrees and CCW x degrees)
+        :param homed_func: function that will be used to see if platform is homed
+        """
+        motor_step_counter = 0
+
+        # Turn angle degrees CW
+        for _ in range(int(GEAR_RATIO * abs(angle) / DEGREES_PER_ROTATION)):
+            if homed_func() == 0: return
+
+            for pin in range(0, len(self.motor_pins)):
+                GPIO.output(self.motor_pins[pin], self.step_sequence[motor_step_counter][pin])
+
+            motor_step_counter = (motor_step_counter - 1) % 8
+            sleep(STARTING_STEP_SLEEP) 
+            
+            
+
+        motor_step_counter = 0
+
+        # Turn angle * 2 degrees CCW
+        for _ in range(int(GEAR_RATIO * abs(angle * 2) / DEGREES_PER_ROTATION)):
+            if homed_func() == 0: return
+
+            for pin in range(0, len(self.motor_pins)):
+                GPIO.output(self.motor_pins[pin], self.step_sequence[motor_step_counter][pin])
+
+            motor_step_counter = (motor_step_counter + 1) % 8
+            sleep(STARTING_STEP_SLEEP)
+
     def stop(self):
         """
         Tell the servo motor to stop

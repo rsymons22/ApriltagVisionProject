@@ -8,10 +8,11 @@ import math
 
 HEIGHT_PX = 480
 WIDTH_PX = 640
-TAG_WIDTH = 6.5
 
 class ApriltagDetection():
    def __init__(self, tag):
+      self.TAG_WIDTH = 6.5
+
       data = np.load("calibration_data.npz")
       self.mtx = data["mtx"]
       self.dist = data["dist"]
@@ -24,28 +25,24 @@ class ApriltagDetection():
       self.vert = None
       self.stop = False
       self.distance = None
+      self.adj_width = None
       self.tag = tag
 
-   def calculate_distance(self, corners, theta):
+   def calculate_tag_width(self, corners, theta):
       """
-      Calculates the distance from the apriltag to the camera using the formula:
-
-      D = (real_width * focal length x) / pixels_width
+      Rotated april tags will appear to have a smaller "width", this can be corrected
+      by using the formula: width = apparent_width / cos(theta)
 
       :param corners: size 4 tuple of size 2 coordinate tuples of the 4 corners
       :param theta: yaw angle of the april tag
-      :return: distance in inches
-
+      :return: width of the tag in inches
       """
       m1 = ((corners[0][0] + corners[3][0]) / 2, (corners[0][1] + corners[3][1]) / 2)
       m2 = ((corners[1][0] + corners[2][0]) / 2, (corners[1][1] + corners[2][1]) / 2)
 
       width_px = math.sqrt((m2[0] - m1[0])**2 + (m2[1] - m1[1])**2)
-      # Rotated april tags will appear to have a smaller "width", this can be corrected
-      # by using the formula: real_width = apparent_width / cos(theta)
-      width_px_adjusted = math.fabs(width_px / math.cos(theta))
-
-      self.distance = (TAG_WIDTH * self.newmtx[0][0]) / width_px_adjusted
+      
+      return math.fabs(width_px / math.cos(theta))
 
    def run_detection(self):
       cap = cv.VideoCapture(0)
@@ -83,8 +80,11 @@ class ApriltagDetection():
             self.horiz = center[0] - (WIDTH_PX / 2)
             self.vert = center[1] - (HEIGHT_PX / 2)
 
-            # Calculate distance
-            self.calculate_distance(r.corners, math.atan2(r.homography[1, 0], r.homography[0, 0]))
+            # Calculate adjusted width
+            self.adj_width = self.calculate_tag_width(r.corners, math.atan2(r.homography[1, 0], r.homography[0, 0]))
+
+            # Calculate distance: D = (real_width * focal length x) / pixels_width
+            self.distance = (self.TAG_WIDTH * self.newmtx[0][0]) / self.adj_width
 
             # Draw pertinent information on the screen
             cv.putText(dst, f"t:{str(r.tag_id)} | h:{self.horiz} | d:{int(self.distance)}", (ptA[0], ptA[1] - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)

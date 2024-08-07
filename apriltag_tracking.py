@@ -4,7 +4,7 @@ from stepper_motor import StepperMotor
 from beam_sensor import BeamSensor
 import threading
 
-OUTER_THRESHOLD_PX = 15
+OUTER_THRESHOLD_PX = 20
 INNER_THRESHOLD_PX = 7
 debug = True
 DEFAULT_TAG_TO_TRACK = "13"
@@ -41,7 +41,7 @@ def track():
 
         # Take a snapshot of the horiz offset value, as atdetection.horiz can change to None even after the check
         h = atdetection.horiz
-
+        
         # No tags detected
         if h == None:
             # Currently moving -> stop
@@ -97,10 +97,20 @@ def track():
             turning_CW = True
             turning_CCW = False
 
+        sleep(0.001)
+
             
     atdetection.stop = True
 
 if __name__ == "__main__":
+
+    # If not already homed
+    if beam.read() == 1:
+        print(f"> Homing...")
+        motor.home(45, beam.read)
+        print(f"> Homing complete, tracking") 
+    
+
     threading.Thread(target=track, daemon=True).start()
 
     print("Commands:\n \
