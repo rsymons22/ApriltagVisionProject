@@ -4,16 +4,17 @@ from stepper_motor import StepperMotor
 from beam_sensor import BeamSensor
 import threading
 
-OUTER_THRESHOLD_PX = 20
-INNER_THRESHOLD_PX = 7
+OUTER_THRESHOLD_PX = 15
+INNER_THRESHOLD_PX = 3
 debug = True
-DEFAULT_TAG_TO_TRACK = "13"
+DEFAULT_TAG_TO_TRACK = "1"
 
 atdetection = ApriltagDetection(DEFAULT_TAG_TO_TRACK)
 motor = StepperMotor()
 beam = BeamSensor()
 
 stop = False
+pause = False
 
 def check_sudden_dir_change(turning_other):
     """
@@ -38,6 +39,7 @@ def track():
 
     while True:
         if stop: break
+        if pause: continue
 
         # Take a snapshot of the horiz offset value, as atdetection.horiz can change to None even after the check
         h = atdetection.horiz
@@ -116,6 +118,7 @@ if __name__ == "__main__":
     print("Commands:\n \
         \ttag id   -> track tag with given id\n \
         \tdebug    -> toggle debug\n \
+        \tp        -> pause/unpause tracking\n \
         \tq        -> quit\n")
     
 
@@ -123,6 +126,9 @@ if __name__ == "__main__":
         cmd = input("")
 
         if cmd == "q": break
+        if cmd == "p":
+            print(f">", "Unpausing tracking" if pause else "Pausing tracking")
+            pause = not pause
         elif cmd.startswith("tag"): 
             atdetection.tag = cmd[4:]
             print(f"> Tracking tag: {cmd[4:]}")

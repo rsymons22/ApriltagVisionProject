@@ -49,9 +49,9 @@ class ApriltagDetection():
       while True:
          if self.stop: break
 
-         status, img = cap.read()
+         status, dst = cap.read()
 
-         dst = cv.undistort(img, self.mtx, self.dist, None, self.newmtx)
+         dst = cv.undistort(dst, self.mtx, self.dist, None, self.newmtx)
 
          x, y, w, h = self.roi
          dst = dst[y:y+h, x:x+w]
