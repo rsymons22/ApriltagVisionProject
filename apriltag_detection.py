@@ -28,6 +28,8 @@ class ApriltagDetection():
       self.adj_width = None
       self.tag = tag
 
+      self.status_msg = ""
+
    def calculate_tag_width(self, corners, theta):
       """
       Rotated april tags will appear to have a smaller "width", this can be corrected
@@ -45,6 +47,7 @@ class ApriltagDetection():
       return math.fabs(width_px / math.cos(theta))
 
    def run_detection(self):
+      
       cap = cv.VideoCapture(0)
       while True:
          if self.stop: break
@@ -94,14 +97,17 @@ class ApriltagDetection():
             cv.line(dst, ptD, ptA, (0, 255, 0), 2)
 
             cv.circle(dst, center, 1, (0, 0, 255), 2)
-            
-            
+
+            cv.rectangle(dst, (0, HEIGHT_PX - 30), (WIDTH_PX, HEIGHT_PX - 30), (0, 0, 0), 50)
+            cv.putText(dst, f"{self.status_msg}", (10, HEIGHT_PX - 30), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+
          else:
             self.horiz = None
             self.vert = None
 
-         
          cv.imshow("Video", dst)
+      
          cv.waitKey(10)
 
       cv.destroyAllWindows()

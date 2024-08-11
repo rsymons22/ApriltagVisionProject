@@ -23,7 +23,8 @@ def check_sudden_dir_change(turning_other):
     :param turning_other: if motor is turning in other direction
     """
     if turning_other:
-        if debug: print("Stopping [Sudden direction change]")
+        atdetection.status_msg = "Stopping [Sudden direction change]"
+        if debug: print(atdetection.status_msg)
         motor.stop()
         sleep(0.01)
 
@@ -48,7 +49,8 @@ def track():
         if h == None:
             # Currently moving -> stop
             if turning_CCW or turning_CW:
-                if debug: print("Stopping [Lost target]")
+                atdetection.status_msg = "Stopping [Lost target]"
+                if debug: print(atdetection.status_msg)
                 motor.stop()
 
                 turning_CW = False
@@ -60,14 +62,16 @@ def track():
         # Tag center within outer threshold -> slow down
         elif (turning_CCW or turning_CW) and not turning_slow and (h >= -OUTER_THRESHOLD_PX and h <= OUTER_THRESHOLD_PX):
             motor.in_outer_threshold(True)
-            if debug: print("Slowing Motor [Reached outer threshold]")
+            atdetection.status_msg = "Slowing Motor [Reached outer threshold]"
+            if debug: print(atdetection.status_msg)
 
             turning_slow = True
 
         # Tag center within threshold -> stop
         elif (turning_CCW or turning_CW) and (h >= -INNER_THRESHOLD_PX and h <= INNER_THRESHOLD_PX):
             motor.stop()
-            if debug: print("Stopping [Centered]")
+            atdetection.status_msg = "Stopping [Centered]"
+            if debug: print(atdetection.status_msg)
 
             turning_CW = False
             turning_CCW = False
@@ -75,7 +79,8 @@ def track():
         # Tag center outside outer threshold and still turning slow -> speed up
         elif (turning_CCW or turning_CW) and turning_slow and (h < -OUTER_THRESHOLD_PX or h > OUTER_THRESHOLD_PX):
             motor.in_outer_threshold(False)
-            if debug: print("Speeding up Motor [Outside outer threshold]")
+            atdetection.status_msg = "Speeding up Motor [Outside outer threshold]"
+            if debug: print(atdetection.status_msg)
 
             turning_slow = False
 
@@ -83,7 +88,8 @@ def track():
         elif h < -INNER_THRESHOLD_PX and not turning_CCW:
             check_sudden_dir_change(turning_CW)
             
-            if debug: print("Turning CCW")
+            atdetection.status_msg = "Turning CCW"
+            if debug: print(atdetection.status_msg)
             threading.Thread(target=motor.turn, args=(False,), daemon=True).start()
 
             turning_CCW = True
@@ -93,7 +99,8 @@ def track():
         elif h > INNER_THRESHOLD_PX and not turning_CW:
             check_sudden_dir_change(turning_CCW)
             
-            if debug: print("Turning CW")
+            atdetection.status_msg = "Turning CW"
+            if debug: print(atdetection.status_msg)
             threading.Thread(target=motor.turn, args=(True,), daemon=True).start()
 
             turning_CW = True
